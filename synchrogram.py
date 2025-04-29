@@ -28,14 +28,14 @@ def adjust_phase_to_0_mpi(phi_rr): #相位展开
     return np.unwrap(phi_rr)  # 使用 np.unwrap() 函数来处理相位跳变问题
 
 def calculate_dynamic_n_m(hr_segment, rr_segment):
-    """根据峰值检测猜测第一个 n:m"""
+    """根据峰值检测动态调整 n:m"""
     hr_peaks, _ = find_peaks(hr_segment, height=0.5)
     rr_peaks, _ = find_peaks(rr_segment, height=0.5)
-  
-    n = len(hr_peaks)
+
+    n = len(hr_peaks)  
     m = len(rr_peaks)  
 
-    return n, m
+    return round(n/m)
 
 def get_hr(y, fs=60, min=30, max=180):
     #fs: 采样频率
@@ -64,175 +64,173 @@ def calculate_dynamic_n_m_v2(hr_segment, rr_segment, fs=60):
     # 3) 比值四舍五入
     ratio = HR_bpm / VR_bpm
     n = int(np.round(ratio))
-    m = 1
     
-    return n, m
+    return n
 
-def calculate_gamma(hr_seg,rr_seg):
-    """
-    得到段内所有可能的n:m对应的同步度表
-    以字典形式记录
-    """
-    phi_rr = np.angle(hilbert(rr_seg))
-    phi_rr = adjust_phase_to_0_mpi(phi_rr) 
-    peaks,_ = find_peaks(hr_seg)
-    sync_seg=phi_rr[peaks]
-    n,m=calculate_dynamic_n_m_v2(hr_seg,rr_seg)  #得到第一个猜测的同步比，可使用峰值数目比和频率比两种方法
-    n=round(n/m)
-    m=1
-    print('n:',n)
-    print('m:',m)
+def calculate_gamma(sync,ratio_0):
+    # Initialize n_m_sync_dict as an empty dictionary
     n_m_sync_dict = {}
+    
+    n=ratio_0
     #m=1时
     mm=1
     for nn in range((n-1),(n+1)+1):
         if nn==1:
             continue #跳过nn=1的情况
-        phi_rr_mod=np.mod(sync_seg,2*np.pi*mm)/(2*np.pi)
-        psi_plus=(2*np.pi/mm) *(np.mod((phi_rr_mod * nn), mm))
-        gamma_sync = []
-        N=3*nn
-        for k in range(0, len(psi_plus)):  # 遍历所有时间点，使用滑动窗口
-        # 取滑动窗口内的相对相位
-            start=max(0, k - N//2+1)
-            end=min(len(psi_plus), k + N//2+1)
-            window_psi = psi_plus[start:end]  # 窗口内的相对相位
-        #window_psi = psi_plus[k-N//2+1:k+N//2+1]  # 窗口内的相对相位
-
-    # 计算余弦和正弦的和
-            cos_sum = (np.sum((np.cos(window_psi)))) / len(window_psi)
-            sin_sum = (np.sum((np.sin(window_psi)))) / len(window_psi)
+        phi_rr_mod=np.mod(sync,2*np.pi*mm)/(2*np.pi)
+        window_psi=(2*np.pi/mm) *(np.mod((phi_rr_mod * nn), mm))
+        
+        cos_sum = (np.sum((np.cos(window_psi)))) / len(window_psi)
+        sin_sum = (np.sum((np.sin(window_psi)))) / len(window_psi)
     # 计算同步度
-            gamma = cos_sum**2 + sin_sum**2
-            gamma_sync.append(gamma)
-        n_m_sync_dict[(nn, mm)] = gamma_sync 
+        gamma = cos_sum**2 + sin_sum**2
+        n_m_sync_dict[(nn, mm)] = gamma 
     
     #mm=2
     mm=2
     for nn in range((n-1)*2+1,(n+1)*2):
-        phi_rr_mod=np.mod(sync_seg,2*np.pi*mm)/(2*np.pi)
-        psi_plus=(2*np.pi/mm) *(np.mod((phi_rr_mod * nn), mm))
-        gamma_sync = []
-        N=3*nn
-        for k in range(0, len(psi_plus)):  # 遍历所有时间点，使用滑动窗口
-        # 取滑动窗口内的相对相位
-            start=max(0, k - N//2+1)  
-            end=min(len(psi_plus), k + N//2+1)
-            window_psi = psi_plus[start:end]  # 窗口内的相对相位
-        #window_psi = psi_plus[k-N//2+1:k+N//2+1]  # 窗口内的相对相位
-
-    # 计算余弦和正弦的和
-            cos_sum = (np.sum((np.cos(window_psi)))) / len(window_psi)
-            sin_sum = (np.sum((np.sin(window_psi)))) / len(window_psi)
+        phi_rr_mod=np.mod(sync,2*np.pi*mm)/(2*np.pi)
+        window_psi=(2*np.pi/mm) *(np.mod((phi_rr_mod * nn), mm))
+        
+        cos_sum = (np.sum((np.cos(window_psi)))) / len(window_psi)
+        sin_sum = (np.sum((np.sin(window_psi)))) / len(window_psi)
     # 计算同步度
-            gamma = cos_sum**2 + sin_sum**2
-            gamma_sync.append(gamma)
-        n_m_sync_dict[(nn, mm)] = gamma_sync
+        gamma = cos_sum**2 + sin_sum**2
+        n_m_sync_dict[(nn, mm)] = gamma 
     
     #mm=3
     mm=3
     for nn in range((n-1)*3+1,(n+1)*3):
-        phi_rr_mod=np.mod(sync_seg,2*np.pi*mm)/(2*np.pi)
-        psi_plus=(2*np.pi/mm) *(np.mod((phi_rr_mod * nn), mm))
-        gamma_sync = []
-        N=3*nn
-        for k in range(0, len(psi_plus)): 
-            start=max(0, k - N//2+1)
-            end=min(len(psi_plus), k + N//2+1)
-            window_psi = psi_plus[start:end]  # 窗口内的相对相位
-            #window_psi = psi_plus[k-N//2+1:k+N//2+1]  # 窗口内的相对相位
-            #圆方差
-            cos_sum = (np.sum((np.cos(window_psi)))) / len(window_psi)
-            sin_sum = (np.sum((np.sin(window_psi)))) / len(window_psi)
-            gamma = cos_sum**2 + sin_sum**2
-            gamma_sync.append(gamma)
-        n_m_sync_dict[(nn, mm)] = gamma_sync
-    #print(n_m_sync_dict[(3,1)])
-    #print(n_m_sync_dict[(4,1)])
-    return n_m_sync_dict,peaks  
+        phi_rr_mod=np.mod(sync,2*np.pi*mm)/(2*np.pi)
+        window_psi=(2*np.pi/mm) *(np.mod((phi_rr_mod * nn), mm))
+        
+        cos_sum = (np.sum((np.cos(window_psi)))) / len(window_psi)
+        sin_sum = (np.sum((np.sin(window_psi)))) / len(window_psi)
+    # 计算同步度
+        gamma = cos_sum**2 + sin_sum**2
+        n_m_sync_dict[(nn, mm)] = gamma 
+    
+    max_key, max_gamma = max(n_m_sync_dict.items(), key=lambda item: item[1])
+    #print(f"最大 γ 对应的 (n, m) = {max_key}, γ = {max_gamma}")
+    
+    return max_key, max_gamma
 
 def simplify_ratio(n, m):
     g = gcd(n, m)
     return (n // g, m // g)    
-def synchrogram(hr_signal, rr_signal, title=1):
+def synchrogram_1(hr_signal, rr_signal, title=""):
     
     hr_min, hr_max = hr_signal.min(), hr_signal.max()
     rr_min, rr_max = rr_signal.min(), rr_signal.max()
 
     hr_norm = 2*(hr_signal - hr_min) / (hr_max - hr_min)-1
     rr_norm = 2*(rr_signal - rr_min) / (rr_max - rr_min)-1
-    
+    # 计算较慢信号（rr_signal）的相位，使用Hilbert变换
     phi_rr = np.angle(hilbert(rr_norm))
-    phi_rr = adjust_phase_to_0_mpi(phi_rr)  
-    phi_rr_1 = np.mod(phi_rr, 2 * np.pi )  
-    phi_rr_2 = np.mod(phi_rr, 4 * np.pi)  
-    phi_rr_3 = np.mod(phi_rr, 6 * np.pi )  
-   
-    peaks, _ = find_peaks(hr_norm,height=0)  
+    phi_rr = adjust_phase_to_0_mpi(phi_rr)  # 调整相位到 [0, 2πm] 范围
+    phi_rr_1 = np.mod(phi_rr, 2 * np.pi )  # 将相位限制在 [0, 2π] 范围内
+    phi_rr_2 = np.mod(phi_rr, 4 * np.pi)  # 将相位限制在 [0, 4π] 范围内
+    phi_rr_3 = np.mod(phi_rr, 6 * np.pi )  # 将相位限制在 [0, 6π] 范围内
+    # 找到较快信号（hr_signal）的峰值位置
+    peaks, _ = find_peaks(hr_norm)  # 找到 hr_signal 的峰值位置
     print(len(peaks))
-    
-    sync= phi_rr[peaks]  
+    #peaks_rr = find_peaks(rr_norm)[0]  # 找到 rr_signal 的峰值位置
+
+    # 在峰值位置提取 rr_signal 的相位
+    sync= phi_rr[peaks]  # 提取 rr_signal 的相位
     sync_1 = phi_rr_1[peaks]
-    sync_2 = phi_rr_2[peaks]  
-    sync_3 = phi_rr_3[peaks]  
-
-    seg_len = 1200  # 每段长度
-    hr_segs = []
-    rr_segs = []
-    for i in range(0, len(hr_signal), seg_len):
-        hr_segs.append(hr_signal[i:i + seg_len])
-        rr_segs.append(rr_signal[i:i + seg_len])
-    # 计算同步度
-    gamma_sync_all = []
-    sync_max_n_m = []  # 存储每段的最大同步度对应的n:m比例
-    peaks_all = []  # 存储所有段的峰值位置
-
-    for idx, (hr_seg, rr_seg) in enumerate(zip(hr_segs, rr_segs)):
-        segment_start_index = idx * seg_len  # 当前段的起始位置
-        # 对每段信号计算n:m同步度
-        n_m_sync_dict,peak_seg = calculate_gamma(hr_seg, rr_seg)
-        global_peaks = [p + segment_start_index for p in peak_seg] # 将当前段的峰值位置转换为全局峰值位置
-
-        # 比较多个n:m比例的同步度，选择最大同步度的n:m
-        max_gamma_mean = -1  # 初始化最大同步度
-        max_sync_n_m = None  # 存储对应的n:m比例
-        max_gamma_list = []
-
-        for (n, m), gamma_list in n_m_sync_dict.items():
-            mean_gamma_in_segment =np.mean(gamma_list)  # 当前段同步度均值
-            cur_gamma_list= gamma_list  # 当前n:m的同步度列表
-        # 如果当前n:m的同步度更大，则更新最大同步度和比例
-            if (mean_gamma_in_segment) > max_gamma_mean:
-                max_gamma_list = cur_gamma_list  # 更新当前n:m的同步度列表
-                max_gamma_mean = mean_gamma_in_segment  # 更新最大同步度
-               # max_gamma_list =  cur_gamma_list  # 更新当前n:m的同步度列表
-                max_sync_n_m = (n, m)  # 更新最大同步度和比例
-        # 如果同步度相同，取m较大的比例
-            elif (mean_gamma_in_segment) == max_gamma_mean:
-                n_val, m_val = max_sync_n_m
-                new_n, new_m = n, m
-                if new_m > m_val:
-                    max_sync_n_m = (new_n, new_m)  # 更新最大同步度和比例
-                    max_gamma_list = cur_gamma_list  # 更新当前n:m的同步度列表
-                    
-
-        gamma_sync_all.extend(max_gamma_list)  # 将当前段的同步度添加到总列表中
-        sync_max_n_m.append(max_sync_n_m)
-        peaks_all.extend(global_peaks)  # 存储当前段的峰值位置
+    sync_2 = phi_rr_2[peaks]  # 提取 rr_signal 的相位
+    sync_3 = phi_rr_3[peaks]  # 提取 rr_signal 的相位
     
-    sync_max_n_m = [simplify_ratio(n, m) for n, m in sync_max_n_m]
-    print(sync_max_n_m)  #打印每段检测到的同步比
+    window_size = 600
+    ratio_data = []  # 用来保存 (峰值位置, (n, m))
+    for i in range(0,len(peaks)): #计算每个峰值位置的 初步猜测的 n:m 比例
+        p=peaks[i]
+        start = max(0, p - window_size)
+        end = min(len(hr_signal), p + window_size)
+        hr_seg_local = hr_signal[start:end]
+        rr_seg_local = rr_signal[start:end]
+        local_n= calculate_dynamic_n_m(hr_seg_local, rr_seg_local)
+        ratio_data.append((i, local_n ))
+    print(ratio_data)
+    gamma_all = []
+    max_n_m=[]
+    
+    N=50
+    
+    for k in range(N//2,len(peaks)-N//2):
+        # 取滑动窗口内的相对相位
+        start = int(max(0, k - N//2+1))
+        end = int(min(len(peaks), k + N//2+1))
+        window_sync = sync[start:end]
+        ratio_cur=ratio_data[k][1]
+        n_m,gamma_cur=calculate_gamma(window_sync,ratio_cur)
+        gamma_all.append(gamma_cur)
+        max_n_m.append(n_m)
+        
+    
+    print(f"len(psi_plus):{len(sync)}")
+    max_n_m = [simplify_ratio(n, m) for n, m in max_n_m]
+    # 同步阈值定义（同步状态判断）
+    threshold = 0.1
 
+    # 根据阈值计算同步状态 (1为同步，0为非同步)
+    sync_states = np.array(gamma_all) > threshold
+
+    # 识别同步区间的起始和终止索引
+    sync_periods = []
+    in_sync = False
+    for i, state in enumerate(sync_states):
+        if state and not in_sync:
+            start_idx = peaks[i]  # 同步段起始索引
+            in_sync = True
+        elif not state and in_sync:
+            end_idx = peaks[i - 1]  # 同步段终止索引
+            sync_periods.append((start_idx, end_idx))
+            in_sync = False
+    # 若记录末尾仍处于同步状态
+    if in_sync:
+        sync_periods.append((start_idx, peaks[-1]))
+
+    # 计算指标
+    total_length = len(hr_signal)
+    total_sync_duration = sum(end - start for start, end in sync_periods)
+    
+    # %Sync
+    percent_sync = (total_sync_duration / total_length) * 100
+
+    # AvgDurSync
+    avg_dur_sync = (total_sync_duration / len(sync_periods)) if sync_periods else 0
+
+    # NumSync
+    num_sync = len(sync_periods)
+
+    # FreqRat
+    freq_ratios = [n/m for n, m in max_n_m if m != 0]
+    freq_rat = np.mean(freq_ratios) if freq_ratios else np.nan
+
+    # 打印结果
+    print("指标计算结果：")
+    print(f"%Sync: {percent_sync:.2f}%")
+    print(f"AvgDurSync: {avg_dur_sync:.2f} samples")
+    print(f"NumSync: {num_sync}")
+    print(f"FreqRat (Respiratory:Cardiac): {freq_rat:.2f}")
     # 绘制结果
     fig, axes = plt.subplots(5, 1, figsize=(10, 10))
+    plt.suptitle(f"segment{title}")
 
     # 绘制 hr_signal 和 rr_signal 信号
     axes[0].plot(hr_norm, 'r', label='hr_signal')
     axes[0].plot(rr_norm, 'b', label='rr_signal')
     axes[0].set_title(f" Signal HR and RR") 
     axes[0].legend()
+ # 在第一个图中标记 hr_signal 的峰值位置
+    """axes[0].plot(peaks, hr_norm[peaks] ,"ro")  # 红色标记峰值位置
+    for i in peaks:
+        axes[0].annotate(f'{hr_norm[i]:.2f}', (i, hr_norm[i]),
+                         textcoords="offset points", xytext=(0, 10), ha='center')"""
                          
-    # 绘制同步图 m=1 m=2 m=3
+    # 绘制同步图
     axes[1].plot(peaks, sync_1/(2*np.pi), "o")
     axes[1].set_title(f"m=1")
     axes[1].set_xlabel("Time")
@@ -245,9 +243,68 @@ def synchrogram(hr_signal, rr_signal, title=1):
     axes[3].set_title(f"m=3")
     axes[3].set_xlabel("Time")
     axes[3].set_ylabel("Phase")
-    
+    min_val = min(gamma_all)
+    max_val = max(gamma_all)
+
+# 向下/向上取整到 0.1 的倍数
+    import math
+    start_tick = math.floor(min_val * 10) / 10
+    end_tick = math.ceil(max_val * 10) / 10
+    axes[4].set_ylim([start_tick, end_tick])
+    axes[4].set_yticks(np.arange(start_tick, end_tick + 0.001, 0.1))
     # 绘制同步度变化图
-    axes[4].plot(peaks_all, gamma_sync_all, '-')
+    axes[4].plot(peaks[N//2:len(sync)-N//2], gamma_all, '-')
     axes[4].set_title(f"Synchronization Degree over Time")
     axes[4].set_xlabel("Time")
     axes[4].set_ylabel("Synchronization Degree")
+
+    plt.tight_layout()
+    plt.show()
+
+    #绘制n:m热图
+    n_vals, m_vals = zip(*max_n_m)
+    max_n = max(n_vals)
+    max_m = max(m_vals)
+
+    heatmap = np.zeros((max_n + 1, max_m + 1))
+
+    for n, m in max_n_m:
+        heatmap[n, m] += 1
+
+    plt.figure(figsize=(10, 6))
+    plt.imshow(heatmap, cmap='Blues', origin='lower')
+
+    for n in range(max_n + 1):
+        for m in range(max_m + 1):
+            if heatmap[n, m] > 0:
+                plt.text(m, n, int(heatmap[n, m]), ha='center', va='center', color='black')
+
+    plt.xlim(0, 3.5)  # 
+    #plt.ylim(0, 10) # 纵轴 n 从 0 到 10
+    plt.colorbar(label='Frequency')
+    plt.title("Heatmap of (n, m) Frequency")
+    plt.xlabel("m value")
+    plt.ylabel("n value")
+    plt.grid(False)
+    plt.tight_layout()
+    plt.show()
+
+    #绘制n:m折线图
+    n_vals, m_vals = zip(*max_n_m)
+    time_points = np.arange(len(max_n_m))
+
+    plt.figure(figsize=(15, 6))
+    plt.plot(time_points, n_vals, marker='o', label='n', linestyle='-', linewidth=2)
+    plt.plot(time_points, m_vals, marker='s', label='m', linestyle='--', linewidth=2)
+    #
+    for i, (x, y_n, y_m) in enumerate(zip(time_points, n_vals, m_vals)):
+        plt.text(x, y_n + 0.2, f'{y_n}', ha='center', va='bottom', fontsize=6, color='blue')
+        plt.text(x, y_m - 0.4, f'{y_m}', ha='center', va='top', fontsize=6, color='red')
+    plt.title("Line Plot of (n, m) over Time")
+    plt.xlabel("Time Point")
+    plt.ylabel("Value")
+    plt.legend()
+    plt.grid(True, linestyle='--', alpha=0.5)
+    plt.tight_layout()
+    plt.show()
+    
