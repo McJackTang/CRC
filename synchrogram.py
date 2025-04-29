@@ -217,8 +217,7 @@ def synchrogram_1(hr_signal, rr_signal, title=""):
     print(f"FreqRat (Respiratory:Cardiac): {freq_rat:.2f}")
     # 绘制结果
     fig, axes = plt.subplots(5, 1, figsize=(10, 10))
-    plt.suptitle(f"segment{title}")
-
+    
     # 绘制 hr_signal 和 rr_signal 信号
     axes[0].plot(hr_norm, 'r', label='hr_signal')
     axes[0].plot(rr_norm, 'b', label='rr_signal')
