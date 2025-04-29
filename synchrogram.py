@@ -171,50 +171,37 @@ def synchrogram_1(hr_signal, rr_signal, title=""):
     
     print(f"len(psi_plus):{len(sync)}")
     max_n_m = [simplify_ratio(n, m) for n, m in max_n_m]
-    # 同步阈值定义（同步状态判断）
-    threshold = 0.1
+    # === 计算同步指标 ===
+    # 1. %Sync：同步时间百分比
+    threshold_sync = 0.1  # 同步度阈值
+    sync_flags = np.array(gamma_all) > threshold_sync #
+    percent_sync = np.sum(sync_flags) / len(sync_flags) * 100  # 百分比
 
-    # 根据阈值计算同步状态 (1为同步，0为非同步)
-    sync_states = np.array(gamma_all) > threshold
+    # 2. NumSync：同步片段次数（同步段数量）
+    from itertools import groupby
+    sync_epochs = [list(g) for k, g in groupby(sync_flags) if k == True]  # 连续的同步段
+    num_sync = len(sync_epochs)
 
-    # 识别同步区间的起始和终止索引
-    sync_periods = []
-    in_sync = False
-    for i, state in enumerate(sync_states):
-        if state and not in_sync:
-            start_idx = peaks[i]  # 同步段起始索引
-            in_sync = True
-        elif not state and in_sync:
-            end_idx = peaks[i - 1]  # 同步段终止索引
-            sync_periods.append((start_idx, end_idx))
-            in_sync = False
-    # 若记录末尾仍处于同步状态
-    if in_sync:
-        sync_periods.append((start_idx, peaks[-1]))
+    # 3. AvgDurSync：同步持续时间的平均值
+    if num_sync > 0:
+        avg_dur_sync = np.mean([len(epoch) for epoch in sync_epochs])
+    else:
+        avg_dur_sync = 0
 
-    # 计算指标
-    total_length = len(hr_signal)
-    total_sync_duration = sum(end - start for start, end in sync_periods)
-    
-    # %Sync
-    percent_sync = (total_sync_duration / total_length) * 100
+    # 4. FreqRat：频率比（用(n, m)的平均来近似）
+    n_vals, m_vals = zip(*max_n_m)
+    avg_n = np.mean(n_vals)
+    avg_m = np.mean(m_vals)
+    freq_ratio = avg_n / avg_m if avg_m != 0 else np.nan
 
-    # AvgDurSync
-    avg_dur_sync = (total_sync_duration / len(sync_periods)) if sync_periods else 0
+    # === 打印输出结果 ===
+    print("\n===== Synchronization Metrics =====")
+    print(f"1. %Sync (同步百分比): {percent_sync:.2f}%")
+    print(f"2. NumSync (同步段数): {num_sync}")
+    print(f"3. AvgDurSync (同步持续时间平均值): {avg_dur_sync:.2f} 窗口数")
+    print(f"4. FreqRat (心跳/呼吸频率比): {freq_ratio:.2f}")
+    print("===================================\n")
 
-    # NumSync
-    num_sync = len(sync_periods)
-
-    # FreqRat
-    freq_ratios = [n/m for n, m in max_n_m if m != 0]
-    freq_rat = np.mean(freq_ratios) if freq_ratios else np.nan
-
-    # 打印结果
-    print("指标计算结果：")
-    print(f"%Sync: {percent_sync:.2f}%")
-    print(f"AvgDurSync: {avg_dur_sync:.2f} samples")
-    print(f"NumSync: {num_sync}")
-    print(f"FreqRat (Respiratory:Cardiac): {freq_rat:.2f}")
     # 绘制结果
     fig, axes = plt.subplots(5, 1, figsize=(10, 10))
     
