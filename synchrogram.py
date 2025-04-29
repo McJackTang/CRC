@@ -277,7 +277,9 @@ def synchrogram_1(hr_signal, rr_signal, title=""):
 
     #绘制n:m折线图
     n_vals, m_vals = zip(*max_n_m)
-    time_points = np.arange(len(max_n_m))
+    #time_points = np.arange(len(max_n_m))
+    time_points = peaks[N//2:len(sync)-N//2]  #
+
 
     plt.figure(figsize=(15, 6))
     plt.plot(time_points, n_vals, marker='o', label='n', linestyle='-', linewidth=2)
