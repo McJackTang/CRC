@@ -158,7 +158,7 @@ def synchrogram_1(hr_signal, rr_signal, title=""):
     
     N=50
     
-    for k in range(N//2,len(peaks)-N//2):
+    for k in range(0,len(peaks)):
         # 取滑动窗口内的相对相位
         start = int(max(0, k - N//2+1))
         end = int(min(len(peaks), k + N//2+1))
@@ -172,21 +172,53 @@ def synchrogram_1(hr_signal, rr_signal, title=""):
     print(f"len(psi_plus):{len(sync)}")
     max_n_m = [simplify_ratio(n, m) for n, m in max_n_m]
     # === 计算同步指标 ===
-    # 1. %Sync：同步时间百分比
+    
+    fs = 60  # 实际采样率
+    
+    peaks_trimmed = peaks[:]  # gamma_all 对应的峰值位置
+    total_duration_sec = (peaks_trimmed[-1] - peaks_trimmed[0]) / fs  # 总持续时间（秒）
     threshold_sync = 0.1  # 同步度阈值
     sync_flags = np.array(gamma_all) > threshold_sync #
-    percent_sync = np.sum(sync_flags) / len(sync_flags) * 100  # 百分比
+    # 找出所有同步段的索引范围
+    sync_epochs = []
+    start_idx = 0
+    in_sync = False
+
+    for i, flag in enumerate(sync_flags):
+        if flag and not in_sync:
+            # 新的同步段开始
+            start_idx = i
+            in_sync = True
+        elif not flag and in_sync:
+            # 同步段结束
+            end_idx = i - 1
+            sync_epochs.append((start_idx, end_idx))
+            in_sync = False
+    # 最后一段是同步状态
+    if in_sync:
+        sync_epochs.append((start_idx, len(sync_flags) - 1))
+
+    # 计算每段同步持续时间（秒）
+    durations_sec = []
+    for start, end in sync_epochs:
+        t_start = peaks_trimmed[start]
+        t_end = peaks_trimmed[end]
+        if(t_start==t_end):
+            continue   # 跳过相同的点
+        duration = (t_end - t_start) / fs
+        #设置同步时间阈值
+        if duration>=10:
+            durations_sec.append(duration)
+
+    # 1. %Sync：同步时间百分比
+    sync_duration_sec = sum(durations_sec)
+    percent_sync = (sync_duration_sec / total_duration_sec) * 100
 
     # 2. NumSync：同步片段次数（同步段数量）
-    from itertools import groupby
-    sync_epochs = [list(g) for k, g in groupby(sync_flags) if k == True]  # 连续的同步段
-    num_sync = len(sync_epochs)
+    num_sync = len(durations_sec)
 
     # 3. AvgDurSync：同步持续时间的平均值
-    if num_sync > 0:
-        avg_dur_sync = np.mean([len(epoch) for epoch in sync_epochs])
-    else:
-        avg_dur_sync = 0
+    avg_dur_sync_sec = np.mean(durations_sec) if durations_sec else 0
 
     # 4. FreqRat：频率比（用(n, m)的平均来近似）
     n_vals, m_vals = zip(*max_n_m)
@@ -198,13 +230,18 @@ def synchrogram_1(hr_signal, rr_signal, title=""):
     print("\n===== Synchronization Metrics =====")
     print(f"1. %Sync (同步百分比): {percent_sync:.2f}%")
     print(f"2. NumSync (同步段数): {num_sync}")
-    print(f"3. AvgDurSync (同步持续时间平均值): {avg_dur_sync:.2f} 窗口数")
+    print(f"3. AvgDurSync (同步持续时间平均值): {avg_dur_sync_sec:.2f}秒")
+    print(f"各个持续时间: {durations_sec}")
+    print(f"各个同步段: {sync_epochs}")
+    print(f"总数量: {len(gamma_all)}")
     print(f"4. FreqRat (心跳/呼吸频率比): {freq_ratio:.2f}")
     print("===================================\n")
 
+    
     # 绘制结果
     fig, axes = plt.subplots(5, 1, figsize=(10, 10))
-    
+    #plt.suptitle(f"segment{title}")
+
     # 绘制 hr_signal 和 rr_signal 信号
     axes[0].plot(hr_norm, 'r', label='hr_signal')
     axes[0].plot(rr_norm, 'b', label='rr_signal')
@@ -239,16 +276,16 @@ def synchrogram_1(hr_signal, rr_signal, title=""):
     axes[4].set_ylim([start_tick, end_tick])
     axes[4].set_yticks(np.arange(start_tick, end_tick + 0.001, 0.1))
     # 绘制同步度变化图
-    axes[4].plot(peaks[N//2:len(sync)-N//2], gamma_all, '-')
+    axes[4].plot(peaks[:], gamma_all, '-')
     axes[4].set_title(f"Synchronization Degree over Time")
     axes[4].set_xlabel("Time")
     axes[4].set_ylabel("Synchronization Degree")
 
     plt.tight_layout()
     plt.show()
-
-    #绘制n:m热图
+    
     n_vals, m_vals = zip(*max_n_m)
+
     max_n = max(n_vals)
     max_m = max(m_vals)
 
@@ -274,17 +311,16 @@ def synchrogram_1(hr_signal, rr_signal, title=""):
     plt.grid(False)
     plt.tight_layout()
     plt.show()
+    
 
-    #绘制n:m折线图
     n_vals, m_vals = zip(*max_n_m)
-    #time_points = np.arange(len(max_n_m))
-    time_points = peaks[N//2:len(sync)-N//2]  #
+    time_points = peaks[:]
 
 
     plt.figure(figsize=(15, 6))
     plt.plot(time_points, n_vals, marker='o', label='n', linestyle='-', linewidth=2)
     plt.plot(time_points, m_vals, marker='s', label='m', linestyle='--', linewidth=2)
-    #
+    # 遍历每个点，加上具体数值
     for i, (x, y_n, y_m) in enumerate(zip(time_points, n_vals, m_vals)):
         plt.text(x, y_n + 0.2, f'{y_n}', ha='center', va='bottom', fontsize=6, color='blue')
         plt.text(x, y_m - 0.4, f'{y_m}', ha='center', va='top', fontsize=6, color='red')
@@ -296,3 +332,4 @@ def synchrogram_1(hr_signal, rr_signal, title=""):
     plt.tight_layout()
     plt.show()
     
+    return percent_sync, num_sync, avg_dur_sync_sec, freq_ratio
