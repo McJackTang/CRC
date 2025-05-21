@@ -8,7 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.signal import hilbert, find_peaks
 # 参数设置
-omega_x = 2
+omega_x = 3
 omega_y = 5
 t = np.arange(0, 50, 0.01)  # 时间向量
 x = np.sin(omega_x * np.pi*t)  # 较慢波（x）
