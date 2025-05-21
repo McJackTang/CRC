@@ -2,7 +2,7 @@
 ## **同步图**
 - 在较慢波中找出较快波峰值出现时刻的相位值，当两个信号n:m相位同步时，在对应的m归一化相对相位图中可以看到n条接近水平的线
 - 同步图示例
-![同步图示例图t](image-2.png)
+![同步图示例图t](同步图示例图.png)
 ```python
 import numpy as np
 import matplotlib.pyplot as plt
@@ -65,14 +65,15 @@ heartbeats per each respiration.
 - 绘制同步度的变化图
 - 绘制同步比的频率热图
 - 绘制同步比随时间变化的折线图
+  ![alt text](示例1.png)![alt text](示例2.png)
 ## **检测所有可能的n:m**
-![图片](image.png)
+![图片](nm候选.png)
 - 参考论文[Mechanical ventilatory modes and cardioventilatory phase synchronization in acute respiratory failure patients](https://iopscience.iop.org/article/10.1088/1361-6579/aa56ae)的方法：
 初步确定一个n1:1，可以使用心跳频率和呼吸频率的比值获得，如比值为3.27：1，则n:m的第一个猜测为3：1
 - 在 m = 1 时，该过程将最接近猜测的两个比率（即 （n1− 1）：1 和 （n1+ 1）:1）。这两个比率称为最左和最右的比率。例如，最左侧和最右侧的比率为 m = 1 时为 2：1 和 4：1。接着 2：1 和 4：1 以 4：2 和 8：2 的形式传播到 m = 2，以 6：3 和 12：3 的形式传播到 m = 3。给定 m，则传播的比率（包括极值）都被接受为候选值。
 # **3.脉搏波–呼吸耦合**
 - 参考论文[Cardiorespiratory coupling in preterm infants](https://journals.physiology.org/doi/full/10.1152/japplphysiol.00722.2018)中使用的BPRSA方法：
-- PRSA 是一种信号分析技术，能够检测和量化被复合信号、伪影和噪声的非平稳特性所掩盖的准周期振荡，PRSA 可以量化信号处于特定相位时每个准周期性的相干时间。相位的识别基于识别锚点 (AP)，对 AP 周围邻域的信号进行平均，即可得到原始信号的压缩相位校正版本。该 PRSA 信号包含有关产生相应 AP 的生理机制（可能是准周期机制）的信息。使用以下AP标准识别脉搏波的上升沿，将'>'换成'<'识别下降沿。![alt text](image-1.png)
+- PRSA 是一种信号分析技术，能够检测和量化被复合信号、伪影和噪声的非平稳特性所掩盖的准周期振荡，PRSA 可以量化信号处于特定相位时每个准周期性的相干时间。相位的识别基于识别锚点 (AP)，对 AP 周围邻域的信号进行平均，即可得到原始信号的压缩相位校正版本。该 PRSA 信号包含有关产生相应 AP 的生理机制（可能是准周期机制）的信息。使用以下AP标准识别脉搏波的上升沿，将'>'换成'<'识别下降沿。![alt text](AP标准.png)
 - BPRSA 是 PRSA 技术的推广，其中 AP 在一个（触发）信号中定义，而在另一个（目标）信号中进行平均，能够识别和研究从触发信号到目标信号的耦合。
 - 使用脉搏波作为触发信号，呼吸波作为目标信号，查看脉搏波到呼吸信号的耦合。
 ## **BPRSA评价特征**
