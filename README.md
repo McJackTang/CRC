@@ -10,7 +10,8 @@ This repository provides the implementation, data processing scripts, and analys
 本仓库提供了官方实现、数据处理脚本和分析工具，适用于以下内容：
 -->
 
-**[Contact Sensors to Remote Cameras: Quantifying Cardiorespiratory Coupling in High-Altitude Exercise Recovery]()**
+**[Contact Sensors to Remote Cameras: Quantifying Cardiorespiratory Coupling in High-Altitude Exercise Recovery](
+https://doi.org/10.48550/arXiv.2508.00773)**
 
 <!--
 《从接触式传感器到远程摄像头：高原运动恢复中的心肺耦合量化》（UbiComp '25）
